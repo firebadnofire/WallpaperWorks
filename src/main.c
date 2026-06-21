@@ -40,9 +40,20 @@ typedef struct {
 
 #include "config.h"
 
+#ifndef PLATFORM_FORMAT_TIME_AND_DATE
+#define PLATFORM_FORMAT_TIME_AND_DATE(perm, now, time_str, date_str) false
+#endif
+
+#ifndef PLATFORM_SCALED_BACKGROUND_UPDATED
+#define PLATFORM_SCALED_BACKGROUND_UPDATED(monitor_i) do { \
+    (void) (monitor_i); \
+} while (0)
+#endif
+
 pthread_mutex_t scaled_lock = PTHREAD_MUTEX_INITIALIZER;
 Background unscaled_background = {0};
 pthread_mutex_t unscaled_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t cache_lock = PTHREAD_MUTEX_INITIALIZER;
 
 Semaphore needs_scaling = {
     .cond = PTHREAD_COND_INITIALIZER,
@@ -225,7 +236,9 @@ void *background_thread(void *arg) {
         time_t initial_time = time(0);
         Image decoded = {0};
 
+        pthread_mutex_lock(&cache_lock);
         s8 img_data = get_random_image(&scratch, curl, s8(APP_NAME));
+        pthread_mutex_unlock(&cache_lock);
         if (!img_data.buf) {
             err(
                 "No images are saved in cache. "
@@ -302,6 +315,8 @@ void *resize_thread(void *arg) {
                 ctx.monitors[i].scaled_background = (Background) {0};
                 ctx.monitors[i].scaled_background.img = img;
             pthread_mutex_unlock(&scaled_lock);
+
+            PLATFORM_SCALED_BACKGROUND_UPDATED(i);
         }
     }
 }
@@ -393,7 +408,7 @@ void app_loop(int monitor_i, bool wallpaper_dirty, time_t now) {
     new_static_arena(scratch, 500);
 
     s8 time_str = {0}, date_str = {0};
-    {
+    if (!PLATFORM_FORMAT_TIME_AND_DATE(&scratch, now, &time_str, &date_str)) {
         time_t ftime = now;
         struct tm *lt = localtime(&ftime);
 

@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <shellapi.h>
+#include <time.h>
 #include <sys/time.h>
 #include <Windows.h>
 
@@ -521,7 +522,7 @@ int main(int argc, char *argv[]) {
             .h = win->h,
         };
 
-        app_loop(monitor_i);
+        app_loop(monitor_i, true, time(0));
 
         usleep(100000 * 0.25);
 
