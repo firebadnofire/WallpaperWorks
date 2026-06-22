@@ -2,3 +2,4 @@ resources/*
 third_party/real/*
 build/*
 .vs
+.DS_Store
